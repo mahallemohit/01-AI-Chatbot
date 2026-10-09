@@ -1,19 +1,8 @@
-
-import os
 import time
-from dotenv import load_dotenv
 from google import genai
+from config import API_KEY, MODEL_NAME
 
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key or api_key == "your_api_key_here":
-    raise ValueError("Please configure GEMINI_API_KEY in your .env file.")
-
-client = genai.Client(api_key=api_key)
-
-MODEL_NAME = "gemini-3.5-flash-lite"
+client = genai.Client(api_key=API_KEY)
 
 
 def send_message(chat, message):
