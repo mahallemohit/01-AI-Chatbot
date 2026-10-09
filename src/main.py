@@ -13,14 +13,13 @@ if not api_key or api_key == "your_api_key_here":
 
 client = genai.Client(api_key=api_key)
 
+MODEL_NAME = "gemini-3.5-flash-lite"
 
-def ask_gemini(message):
+
+def send_message(chat, message):
     for attempt in range(3):
         try:
-            response = client.models.generate_content(
-                model="gemini-3.5-flash-lite",
-                contents=message,
-            )
+            response = chat.send_message(message)
             return response.text
 
         except Exception as error:
@@ -43,7 +42,10 @@ def ask_gemini(message):
                 return None
 
 
+chat = client.chats.create(model=MODEL_NAME)
+
 print("=== My AI Chatbot ===")
+print("I can remember our conversation while this session runs.")
 print("Type 'exit' to quit.\n")
 
 while True:
@@ -56,7 +58,7 @@ while True:
     if not user_message:
         continue
 
-    answer = ask_gemini(user_message)
+    answer = send_message(chat, user_message)
 
     if answer:
         print(f"\nAI: {answer}\n")
