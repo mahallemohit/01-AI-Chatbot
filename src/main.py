@@ -42,7 +42,19 @@ def send_message(chat, message):
                 return None
 
 
-chat = client.chats.create(model=MODEL_NAME)
+chat = client.chats.create(
+    model=MODEL_NAME,
+    config={
+        "system_instruction": (
+            "You are a helpful AI assistant for beginners. "
+            "Explain technical concepts in simple language. "
+            "Use practical examples when helpful. "
+            "Keep answers clear and organized. "
+            "If you are unsure about something, say so honestly."
+        )
+    },
+)
+
 
 print("=== My AI Chatbot ===")
 print("I can remember our conversation while this session runs.")
