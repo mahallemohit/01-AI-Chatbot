@@ -5,30 +5,26 @@ from config import API_KEY, MODEL_NAME
 client = genai.Client(api_key=API_KEY)
 
 
+
 def send_message(chat, message):
-    for attempt in range(3):
-        try:
-            response = chat.send_message(message)
-            return response.text
+    try:
+        response = chat.send_message_stream(message)
 
-        except Exception as error:
-            error_message = str(error)
+        print("\nAI: ", end="", flush=True)
 
-            temporary_error = any(
-                code in error_message
-                for code in ["503", "429", "500", "502", "504"]
-            )
+        full_response = ""
 
-            if temporary_error and attempt < 2:
-                wait_seconds = 2 ** (attempt + 1)
-                print(
-                    f"Temporary API error. "
-                    f"Retrying in {wait_seconds} seconds..."
-                )
-                time.sleep(wait_seconds)
-            else:
-                print(f"API request failed: {error}")
-                return None
+        for chunk in response:
+            if chunk.text:
+                print(chunk.text, end="", flush=True)
+                full_response += chunk.text
+
+        print("\n")
+        return full_response
+
+    except Exception as error:
+        print(f"\nAPI request failed: {error}")
+        return None
 
 
 chat = client.chats.create(
