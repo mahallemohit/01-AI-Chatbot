@@ -2,7 +2,13 @@
 import streamlit as st
 from google import genai
 from config import API_KEY, MODEL_NAME
-from chat_history import initialize_database, save_message, load_messages
+from chat_history import (
+    initialize_database,
+    create_conversation,
+    list_conversations,
+    save_message,
+    load_messages,
+)
 
 st.set_page_config(
     page_title="My AI Chatbot",
@@ -10,12 +16,8 @@ st.set_page_config(
     layout="centered",
 )
 
-st.title("🤖 My AI Chatbot")
-st.caption("Your personal AI assistant, powered by Gemini.")
-
-client = genai.Client(api_key=API_KEY)
 initialize_database()
-
+client = genai.Client(api_key=API_KEY)
 
 SYSTEM_INSTRUCTION = (
     "You are a helpful AI assistant for beginners. "
@@ -25,26 +27,67 @@ SYSTEM_INSTRUCTION = (
     "If you are unsure about something, say so honestly."
 )
 
-if "messages" not in st.session_state:
-    st.session_state.messages = load_messages()
+st.title("🤖 My AI Chatbot")
+st.caption("Your personal AI assistant, powered by Gemini.")
 
-# Display previous messages
+# Create a conversation when the app is opened for the first time.
+if "conversation_id" not in st.session_state:
+    conversations = list_conversations()
+
+    if conversations:
+        st.session_state.conversation_id = conversations[0]["id"]
+    else:
+        st.session_state.conversation_id = create_conversation()
+
+    st.session_state.messages = load_messages(
+        st.session_state.conversation_id
+    )
+
+# Sidebar: create and select conversations.
+with st.sidebar:
+    st.header("Chat History")
+
+    if st.button("➕ New Chat", use_container_width=True):
+        st.session_state.conversation_id = create_conversation()
+        st.session_state.messages = []
+        st.rerun()
+
+    conversations = list_conversations()
+
+    if conversations:
+        conversation_ids = [c["id"] for c in conversations]
+        conversation_titles = {
+            c["id"]: c["title"] for c in conversations
+        }
+
+        current_id = st.session_state.conversation_id
+
+        if current_id in conversation_ids:
+            selected_id = st.selectbox(
+                "Previous conversations",
+                options=conversation_ids,
+                index=conversation_ids.index(current_id),
+                format_func=lambda cid: conversation_titles[cid],
+            )
+
+            if selected_id != current_id:
+                st.session_state.conversation_id = selected_id
+                st.session_state.messages = load_messages(selected_id)
+                st.rerun()
+
+# Display messages from the selected conversation.
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-
-# Accept a new message
-
-# Accept a new message
-
-
+# Handle a new message.
 if prompt := st.chat_input("Ask me anything..."):
-    user_message = {"role": "user", "content": prompt}
+    conversation_id = st.session_state.conversation_id
 
-    # Save the user's message
-    save_message("user", prompt)
-    st.session_state.messages.append(user_message)
+    save_message(conversation_id, "user", prompt)
+    st.session_state.messages.append(
+        {"role": "user", "content": prompt}
+    )
 
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -83,11 +126,33 @@ if prompt := st.chat_input("Ask me anything..."):
 
                 st.markdown(answer)
 
-            # Save the assistant's response
-            save_message("assistant", answer)
+            save_message(conversation_id, "assistant", answer)
             st.session_state.messages.append(
                 {"role": "assistant", "content": answer}
             )
+
+            # Give a new conversation a useful title.
+            conversations = list_conversations()
+            current_title = next(
+                (
+                    c["title"]
+                    for c in conversations
+                    if c["id"] == conversation_id
+                ),
+                "New Chat",
+            )
+
+            if current_title == "New Chat":
+                title = prompt[:40].strip() or "New Chat"
+
+                import sqlite3
+                from chat_history import DB_PATH
+
+                with sqlite3.connect(DB_PATH) as connection:
+                    connection.execute(
+                        "UPDATE conversations SET title = ? WHERE id = ?",
+                        (title, conversation_id),
+                    )
 
         except Exception as error:
             st.error(f"Something went wrong: {error}")
