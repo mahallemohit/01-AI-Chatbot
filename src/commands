@@ -1,0 +1,3 @@
+# for running we first active virtual environment i.e venv      ->  .\.venv\Scripts\Activate.ps1
+
+# for launching of forntend we use ->   python -m streamlit run src/app.py
